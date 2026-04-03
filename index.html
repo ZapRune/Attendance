@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ClassCheck — Attendance</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0b0f1a;
+    --surface: #141929;
+    --surface2: #1c2438;
+    --border: rgba(255,255,255,0.08);
+    --amber: #f5a623;
+    --amber-dim: #c2821a;
+    --amber-glow: rgba(245,166,35,0.12);
+    --text: #eef0f7;
+    --text-muted: #7a849e;
+    --text-dim: #4a5368;
+    --success: #34d399;
+    --danger: #f87171;
+    --mono: 'Space Mono', monospace;
+    --sans: 'DM Sans', sans-serif;
+  }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.6;
+  }
+
+  /* ── Layout ─────────────────────────────────── */
+  #app { min-height: 100vh; display: flex; flex-direction: column; }
+
+  .nav {
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .nav-logo {
+    font-family: var(--mono);
+    font-size: 1rem;
+    color: var(--amber);
+    letter-spacing: 0.05em;
+  }
+  .nav-logo span { color: var(--text-muted); }
+  .nav-toggle {
+    font-family: var(--sans);
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 0.35rem 0.9rem;
+    border-radius: 99px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .nav-toggle:hover { border-color: var(--amber); color: var(--amber); }
+
+  /* ── Views ──────────────────────────────────── */
+  .view { display: none; flex: 1; }
+  .view.active { display: flex; flex-direction: column; align-items: center; }
+
+  /* ── STUDENT VIEW ───────────────────────────── */
+  #student-view {
+    justify-content: center;
+    padding: 2rem 1.5rem;
+  }
+
+  .student-card {
+    width: 100%;
+    max-width: 420px;
+  }
+
+  .student-heading {
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    letter-spacing: 0.15em;
+    color: var(--amber);
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+  }
+  .student-title {
+    font-size: 1.8rem;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 0.3rem;
+  }
+  .student-sub {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    margin-bottom: 2rem;
+  }
+
+  .field { margin-bottom: 1.25rem; }
+  .field label {
+    display: block;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    margin-bottom: 0.4rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .field input {
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    font-family: var(--sans);
+    font-size: 1rem;
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .field input:focus { border-color: var(--amber); }
+  .field input.code-input {
+    font-family: var(--mono);
+    font-size: 1.5rem;
+    text-align: center;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    padding: 1rem;
+  }
+
+  .checkin-btn {
+    width: 100%;
+    background: var(--amber);
+    color: #0b0f1a;
+    border: none;
+    border-radius: 8px;
+    padding: 0.85rem;
+    font-family: var(--sans);
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+    margin-top: 0.5rem;
+  }
+  .checkin-btn:hover { background: #fbb740; transform: translateY(-1px); }
+  .checkin-btn:active { transform: translateY(0); }
+  .checkin-btn:disabled { background: var(--surface2); color: var(--text-dim); cursor: not-allowed; transform: none; }
+
+  .status-box {
+    margin-top: 1.5rem;
+    border-radius: 8px;
+    padding: 1rem 1.25rem;
+    font-size: 0.9rem;
+    display: none;
+  }
+  .status-box.show { display: block; }
+  .status-box.info { background: rgba(245,166,35,0.1); border: 1px solid rgba(245,166,35,0.3); color: var(--amber); }
+  .status-box.success { background: rgba(52,211,153,0.1); border: 1px solid rgba(52,211,153,0.3); color: var(--success); }
+  .status-box.error { background: rgba(248,113,113,0.1); border: 1px solid rgba(248,113,113,0.3); color: var(--danger); }
+
+  .status-icon { font-size: 1.8rem; display: block; margin-bottom: 0.4rem; }
+  .status-title { font-weight: 600; font-size: 1rem; }
+  .status-msg { font-size: 0.85rem; opacity: 0.8; margin-top: 0.2rem; }
+
+  .proof-token {
+    margin-top: 1.5rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem;
+    text-align: center;
+    display: none;
+  }
+  .proof-token.show { display: block; }
+  .proof-token-label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.4rem; }
+  .proof-token-value { font-family: var(--mono); font-size: 1.1rem; color: var(--amber); letter-spacing: 0.1em; }
+
+  /* ── TEACHER VIEW ───────────────────────────── */
+  #teacher-view {
+    padding: 2rem 1.5rem;
+    width: 100%;
+    max-width: 680px;
+    margin: 0 auto;
+  }
+
+  .teacher-header {
+    text-align: center;
+    margin-bottom: 2.5rem;
+  }
+  .teacher-header .label {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.18em;
+    color: var(--amber);
+    text-transform: uppercase;
+    margin-bottom: 0.4rem;
+  }
+  .teacher-header h1 { font-size: 1.6rem; font-weight: 600; }
+
+  /* Code display card */
+  .code-display-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 2.5rem 2rem;
+    text-align: center;
+    margin-bottom: 1.5rem;
+    position: relative;
+  }
+  .code-display-card.active-code { border-color: rgba(245,166,35,0.4); background: linear-gradient(135deg, #141929 0%, #1a2035 100%); }
+
+  .code-inactive-msg {
+    color: var(--text-muted);
+    font-size: 0.95rem;
+  }
+
+  .code-big {
+    font-family: var(--mono);
+    font-size: clamp(3.5rem, 10vw, 6rem);
+    font-weight: 700;
+    color: var(--amber);
+    letter-spacing: 0.3em;
+    line-height: 1;
+    margin-bottom: 0.75rem;
+  }
+  .code-meta {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+  }
+  .code-meta .dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
+  .dot-live { background: var(--success); box-shadow: 0 0 6px var(--success); animation: pulse 2s infinite; }
+  .dot-expired { background: var(--danger); }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+  .timer-bar-wrap { margin-top: 1.25rem; }
+  .timer-bar-label { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.3rem; }
+  .timer-bar-track { height: 4px; background: var(--surface2); border-radius: 99px; overflow: hidden; }
+  .timer-bar-fill { height: 100%; background: var(--amber); border-radius: 99px; transition: width 1s linear; }
+
+  .btn-row { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+  .btn {
+    flex: 1;
+    min-width: 140px;
+    padding: 0.75rem 1.25rem;
+    border-radius: 8px;
+    font-family: var(--sans);
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    text-align: center;
+  }
+  .btn:hover { background: var(--surface2); border-color: rgba(255,255,255,0.15); }
+  .btn-primary { background: var(--amber); color: #0b0f1a; border-color: var(--amber); }
+  .btn-primary:hover { background: #fbb740; }
+
+  /* Setup card */
+  .setup-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.25rem;
+    margin-bottom: 1.5rem;
+  }
+  .setup-card-title {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 1rem;
+  }
+  .location-status {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 0.9rem;
+  }
+  .loc-indicator { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .loc-indicator.set { background: var(--success); }
+  .loc-indicator.unset { background: var(--danger); }
+  .loc-coords { font-family: var(--mono); font-size: 0.75rem; color: var(--text-muted); }
+
+  .radius-row { display: flex; align-items: center; gap: 0.75rem; margin-top: 0.75rem; }
+  .radius-row label { font-size: 0.85rem; color: var(--text-muted); flex-shrink: 0; }
+  .radius-row input[type=range] { flex: 1; accent-color: var(--amber); }
+  .radius-val { font-family: var(--mono); font-size: 0.85rem; color: var(--amber); min-width: 52px; text-align: right; }
+
+  /* Login wall */
+  #login-wall {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 70vh;
+    padding: 2rem;
+  }
+  .login-card {
+    width: 100%;
+    max-width: 320px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 2rem;
+    text-align: center;
+  }
+  .login-card h2 { font-size: 1.2rem; font-weight: 600; margin-bottom: 0.4rem; }
+  .login-card p { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.5rem; }
+  .login-card input {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.65rem 1rem;
+    font-family: var(--mono);
+    font-size: 1rem;
+    color: var(--text);
+    text-align: center;
+    letter-spacing: 0.15em;
+    outline: none;
+    margin-bottom: 1rem;
+  }
+  .login-card input:focus { border-color: var(--amber); }
+  .login-error { color: var(--danger); font-size: 0.8rem; margin-top: 0.5rem; display: none; }
+
+  /* Log section */
+  .log-section { margin-top: 0; }
+  .log-title { font-size: 0.8rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.75rem; }
+  .log-empty { font-size: 0.85rem; color: var(--text-dim); padding: 1rem; text-align: center; background: var(--surface); border-radius: 8px; border: 1px solid var(--border); }
+  .log-list { display: flex; flex-direction: column; gap: 0.5rem; }
+  .log-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.65rem 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.875rem;
+  }
+  .log-item .log-name { font-weight: 500; }
+  .log-item .log-time { font-family: var(--mono); font-size: 0.75rem; color: var(--text-muted); }
+  .log-item .log-badge {
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 0.15rem 0.5rem;
+    border-radius: 99px;
+    background: rgba(52,211,153,0.15);
+    color: var(--success);
+    border: 1px solid rgba(52,211,153,0.3);
+  }
+
+  /* Section divider */
+  .divider { height: 1px; background: var(--border); margin: 1.5rem 0; }
+
+  .fullscreen-hint {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    text-align: center;
+    margin-top: 0.75rem;
+  }
+
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- Nav -->
+  <nav class="nav">
+    <div class="nav-logo">CLASS<span>CHECK</span></div>
+    <button class="nav-toggle" id="view-toggle">Teacher Login</button>
+  </nav>
+
+  <!-- STUDENT VIEW -->
+  <div id="student-view" class="view active">
+    <div class="student-card">
+      <p class="student-heading">Daily Check-in</p>
+      <h1 class="student-title">Mark your attendance</h1>
+      <p class="student-sub">Enter the code your teacher has on screen. You must be physically in the classroom.</p>
+
+      <div class="field">
+        <label>Your Name</label>
+        <input type="text" id="student-name" placeholder="First and last name" autocomplete="name">
+      </div>
+
+      <div class="field">
+        <label>Class Code</label>
+        <input type="text" id="code-input" class="code-input" placeholder="· · · · · ·" maxlength="11" autocomplete="off" spellcheck="false">
+      </div>
+
+      <button class="checkin-btn" id="checkin-btn">Check In</button>
+
+      <div class="status-box" id="status-box">
+        <span class="status-icon" id="status-icon"></span>
+        <div class="status-title" id="status-title"></div>
+        <div class="status-msg" id="status-msg"></div>
+      </div>
+
+      <div class="proof-token" id="proof-token">
+        <div class="proof-token-label">Proof Token — show your teacher if asked</div>
+        <div class="proof-token-value" id="proof-val"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TEACHER VIEW (login wall + dashboard) -->
+  <div id="teacher-view" class="view">
+
+    <!-- Login Wall -->
+    <div id="login-wall">
+      <div class="login-card">
+        <h2>Teacher Access</h2>
+        <p>Enter your teacher PIN to access the dashboard</p>
+        <input type="password" id="pin-input" placeholder="● ● ● ●" maxlength="6">
+        <button class="btn btn-primary" style="width:100%" id="login-btn">Unlock Dashboard</button>
+        <div class="login-error" id="login-error">Incorrect PIN. Try again.</div>
+        <p style="margin-top:1.25rem; font-size:0.75rem; color:var(--text-dim)">Default PIN: <span style="font-family:var(--mono);color:var(--text-muted)">1234</span><br>Change this in settings below after logging in.</p>
+      </div>
+    </div>
+
+    <!-- Dashboard (hidden until login) -->
+    <div id="dashboard" style="display:none; width:100%; max-width:680px; padding: 1.5rem;">
+
+      <!-- Header -->
+      <div class="teacher-header">
+        <div class="label">Teacher Dashboard</div>
+        <h1>Class Attendance</h1>
+      </div>
+
+      <!-- Classroom Location Setup -->
+      <div class="setup-card">
+        <div class="setup-card-title">Classroom Location</div>
+        <div class="location-status">
+          <div class="loc-indicator" id="loc-indicator"></div>
+          <span id="loc-status-text">Not set</span>
+        </div>
+        <div class="loc-coords" id="loc-coords" style="margin-top:0.4rem;display:none"></div>
+
+        <div class="radius-row">
+          <label>Radius</label>
+          <input type="range" id="radius-slider" min="20" max="300" value="100" step="10">
+          <span class="radius-val" id="radius-val">100 m</span>
+        </div>
+
+        <button class="btn" style="margin-top:0.75rem; width:100%" id="set-location-btn">📍 Set My Current Location as Classroom</button>
+      </div>
+
+      <!-- Code Generator -->
+      <div class="code-display-card" id="code-card">
+        <div class="code-inactive-msg" id="code-inactive">No active code.<br>Generate one to start today's attendance.</div>
+        <div id="code-live" style="display:none">
+          <div class="code-big" id="code-display">------</div>
+          <div class="code-meta">
+            <span><span class="dot dot-live"></span> Live</span>
+            <span id="expiry-text">Expires in --:--</span>
+          </div>
+          <div class="timer-bar-wrap">
+            <div class="timer-bar-label">Time remaining</div>
+            <div class="timer-bar-track"><div class="timer-bar-fill" id="timer-bar" style="width:100%"></div></div>
+          </div>
+        </div>
+      </div>
+      <div class="fullscreen-hint" id="fullscreen-hint" style="display:none">Press F11 for fullscreen projection mode</div>
+
+      <div class="btn-row" style="margin-bottom:1.5rem">
+        <button class="btn btn-primary" id="generate-btn">⚡ Generate New Code</button>
+        <button class="btn" id="expire-btn" style="display:none">Expire Code</button>
+        <button class="btn" id="fullscreen-btn">⛶ Projector Mode</button>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- PIN change -->
+      <div class="setup-card" style="margin-bottom:1.5rem">
+        <div class="setup-card-title">Change PIN</div>
+        <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap">
+          <input type="password" id="new-pin" placeholder="New PIN" maxlength="6" style="flex:1;min-width:120px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.6rem 0.9rem;font-family:var(--mono);font-size:1rem;color:var(--text);outline:none;">
+          <button class="btn" id="save-pin-btn" style="flex-shrink:0">Save PIN</button>
+        </div>
+        <p id="pin-saved-msg" style="font-size:0.8rem;color:var(--success);margin-top:0.5rem;display:none">PIN updated!</p>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- Attendance Log -->
+      <div class="log-section">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem">
+          <div class="log-title">Today's Check-ins</div>
+          <button class="btn" id="clear-log-btn" style="font-size:0.75rem;padding:0.3rem 0.75rem;min-width:auto">Clear Log</button>
+        </div>
+        <div id="attendance-log"></div>
+      </div>
+
+    </div><!-- /dashboard -->
+  </div>
+
+</div><!-- /app -->
+
+<!-- Projector Overlay -->
+<div id="projector-overlay" style="display:none;position:fixed;inset:0;background:#0b0f1a;z-index:999;flex-direction:column;align-items:center;justify-content:center;">
+  <div style="font-family:var(--mono);font-size:0.9rem;letter-spacing:0.2em;color:var(--text-muted);margin-bottom:1rem;text-transform:uppercase">Today's Class Code</div>
+  <div id="proj-code" style="font-family:var(--mono);font-size:min(22vw,160px);font-weight:700;color:var(--amber);letter-spacing:0.25em;line-height:1;text-align:center;padding:0 1rem;word-break:break-all;"></div>
+  <div style="font-size:1rem;color:var(--text-muted);margin-top:1.5rem" id="proj-sub">Go to <strong style="color:var(--text)">classcheck.app</strong> and enter this code</div>
+  <div style="margin-top:1.25rem;font-family:var(--mono);font-size:0.85rem;color:var(--text-dim)" id="proj-timer"></div>
+  <button onclick="closeProjector()" style="position:fixed;top:1.5rem;right:1.5rem;background:transparent;border:1px solid var(--border);color:var(--text-muted);padding:0.5rem 1rem;border-radius:8px;cursor:pointer;font-family:var(--sans);">✕ Exit</button>
+</div>
+
+<script>
+const TEACHER_PIN_KEY = 'cc_teacher_pin'
+const LOC_KEY = 'cc_classroom_loc'
+const RADIUS_KEY = 'cc_radius'
+const LOG_KEY = 'cc_attendance_log'
+const CODE_DURATION = 15 * 60 * 1000 // 15 minutes
+
+let currentCode = null
+let codeExpiry = null
+let timerInterval = null
+let classroomLoc = null
+let allowedRadius = 100
+
+// ── Encode / Decode ──────────────────────────
+function encodeCode(lat, lng) {
+  const latEnc = Math.round((lat + 90) * 100)   // 0–18000
+  const lngEnc = Math.round((lng + 180) * 100)  // 0–36000
+  const timeEnc = Math.floor(Date.now() / 300000) // 5-min window
+  const latStr = latEnc.toString(36).toUpperCase().padStart(3,'0')
+  const lngStr = lngEnc.toString(36).toUpperCase().padStart(3,'0')
+  const timeStr = timeEnc.toString(36).toUpperCase().padStart(5,'0')
+  return latStr + lngStr + timeStr
+}
+
+function decodeCode(code) {
+  const c = code.replace(/\s/g,'').toUpperCase()
+  if (c.length !== 11) return null
+  try {
+    const latEnc  = parseInt(c.slice(0,3), 36)
+    const lngEnc  = parseInt(c.slice(3,6), 36)
+    const timeEnc = parseInt(c.slice(6,11),36)
+    if (isNaN(latEnc)||isNaN(lngEnc)||isNaN(timeEnc)) return null
+    const lat = (latEnc / 100) - 90
+    const lng = (lngEnc / 100) - 180
+    const windowMs = timeEnc * 300000
+    return { lat, lng, windowMs }
+  } catch { return null }
+}
+
+function validateCode(raw) {
+  const decoded = decodeCode(raw)
+  if (!decoded) return { ok: false, reason: 'Code format is invalid.' }
+  const now = Date.now()
+  const windowMs = decoded.windowMs
+  const diff = now - windowMs
+  if (diff < 0 || diff > CODE_DURATION + 300000) return { ok: false, reason: 'Code has expired or is not yet active.' }
+  return { ok: true, lat: decoded.lat, lng: decoded.lng }
+}
+
+// ── Distance (Haversine) ─────────────────────
+function haversine(lat1, lng1, lat2, lng2) {
+  const R = 6371000
+  const toRad = x => x * Math.PI / 180
+  const dLat = toRad(lat2 - lat1)
+  const dLng = toRad(lng2 - lng1)
+  const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLng/2)**2
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
+}
+
+// ── Proof token ──────────────────────────────
+function makeProof(name, code) {
+  let h = 0
+  const s = name + code + new Date().toDateString()
+  for (let i = 0; i < s.length; i++) { h = ((h << 5) - h + s.charCodeAt(i)) | 0 }
+  return Math.abs(h).toString(36).toUpperCase().padStart(8,'0')
+}
+
+// ── Attendance log ───────────────────────────
+function getLog() {
+  try { return JSON.parse(localStorage.getItem(LOG_KEY) || '[]') } catch { return [] }
+}
+function appendLog(entry) {
+  const log = getLog()
+  log.unshift(entry)
+  localStorage.setItem(LOG_KEY, JSON.stringify(log.slice(0,200)))
+  renderLog()
+}
+function renderLog() {
+  const log = getLog()
+  const today = new Date().toDateString()
+  const todayLog = log.filter(e => new Date(e.ts).toDateString() === today)
+  const el = document.getElementById('attendance-log')
+  if (!todayLog.length) {
+    el.innerHTML = '<div class="log-empty">No check-ins yet today.</div>'
+    return
+  }
+  el.innerHTML = '<div class="log-list">' + todayLog.map(e => `
+    <div class="log-item">
+      <div>
+        <div class="log-name">${e.name}</div>
+        <div class="log-time">${new Date(e.ts).toLocaleTimeString()}</div>
+      </div>
+      <span class="log-badge">Present</span>
+    </div>`).join('') + '</div>'
+}
+
+// ── Student Check-in ─────────────────────────
+document.getElementById('checkin-btn').addEventListener('click', async () => {
+  const name = document.getElementById('student-name').value.trim()
+  const code = document.getElementById('code-input').value.trim()
+  const btn = document.getElementById('checkin-btn')
+  const box = document.getElementById('status-box')
+  const proof = document.getElementById('proof-token')
+
+  proof.classList.remove('show')
+  box.className = 'status-box'
+
+  if (!name) return showStatus('info','→','Name required','Please enter your full name.')
+  if (!code) return showStatus('info','→','Code required','Enter the code from the board.')
+
+  const validation = validateCode(code)
+  if (!validation.ok) return showStatus('error','✕','Invalid code', validation.reason)
+
+  showStatus('info','…','Checking your location…','Please allow location access when prompted.')
+  btn.disabled = true
+
+  if (!navigator.geolocation) {
+    btn.disabled = false
+    return showStatus('error','✕','Location not available','Your browser does not support geolocation.')
+  }
+
+  navigator.geolocation.getCurrentPosition(pos => {
+    btn.disabled = false
+    const { latitude: sLat, longitude: sLng, accuracy } = pos.coords
+    const dist = haversine(sLat, sLng, validation.lat, validation.lng)
+    const savedRadius = parseInt(localStorage.getItem(RADIUS_KEY) || '100')
+
+    if (dist > savedRadius + Math.max(accuracy, 0)) {
+      const distM = Math.round(dist)
+      return showStatus('error','✕','Too far away',`You appear to be ~${distM}m from the classroom. Move closer and try again.`)
+    }
+
+    const token = makeProof(name, code)
+    appendLog({ name, ts: Date.now(), token, dist: Math.round(dist) })
+    showStatus('success','✓','Attendance Marked!',`Welcome, ${name}! You're marked present.`)
+    document.getElementById('proof-val').textContent = token
+    document.getElementById('proof-token').classList.add('show')
+
+  }, err => {
+    btn.disabled = false
+    const msg = err.code === 1 ? 'Location permission denied. Please allow location in your browser settings.'
+               : err.code === 2 ? 'Location unavailable. Check your device settings.'
+               : 'Location request timed out. Try again.'
+    showStatus('error','✕','Location error', msg)
+  }, { timeout: 15000, maximumAge: 30000, enableHighAccuracy: true })
+})
+
+function showStatus(type, icon, title, msg) {
+  const box = document.getElementById('status-box')
+  document.getElementById('status-icon').textContent = icon
+  document.getElementById('status-title').textContent = title
+  document.getElementById('status-msg').textContent = msg
+  box.className = 'status-box show ' + type
+}
+
+// Format code input
+document.getElementById('code-input').addEventListener('input', e => {
+  e.target.value = e.target.value.replace(/[^a-zA-Z0-9]/g,'').toUpperCase()
+})
+
+// ── Teacher Auth ─────────────────────────────
+function getPin() { return localStorage.getItem(TEACHER_PIN_KEY) || '1234' }
+
+document.getElementById('login-btn').addEventListener('click', tryLogin)
+document.getElementById('pin-input').addEventListener('keydown', e => { if(e.key==='Enter') tryLogin() })
+
+function tryLogin() {
+  const entered = document.getElementById('pin-input').value
+  const err = document.getElementById('login-error')
+  if (entered === getPin()) {
+    document.getElementById('login-wall').style.display = 'none'
+    document.getElementById('dashboard').style.display = 'block'
+    initDashboard()
+  } else {
+    err.style.display = 'block'
+    document.getElementById('pin-input').value = ''
+  }
+}
+
+document.getElementById('save-pin-btn').addEventListener('click', () => {
+  const v = document.getElementById('new-pin').value
+  if (v.length < 4) return
+  localStorage.setItem(TEACHER_PIN_KEY, v)
+  document.getElementById('new-pin').value = ''
+  document.getElementById('pin-saved-msg').style.display = 'block'
+  setTimeout(() => document.getElementById('pin-saved-msg').style.display = 'none', 2000)
+})
+
+// ── Teacher Dashboard ────────────────────────
+function initDashboard() {
+  // Load saved location
+  const saved = localStorage.getItem(LOC_KEY)
+  if (saved) { classroomLoc = JSON.parse(saved); updateLocUI() }
+
+  // Load saved radius
+  allowedRadius = parseInt(localStorage.getItem(RADIUS_KEY) || '100')
+  document.getElementById('radius-slider').value = allowedRadius
+  document.getElementById('radius-val').textContent = allowedRadius + ' m'
+
+  renderLog()
+}
+
+document.getElementById('set-location-btn').addEventListener('click', () => {
+  const btn = document.getElementById('set-location-btn')
+  btn.textContent = '📡 Getting location…'
+  btn.disabled = true
+  navigator.geolocation.getCurrentPosition(pos => {
+    classroomLoc = { lat: pos.coords.latitude, lng: pos.coords.longitude }
+    localStorage.setItem(LOC_KEY, JSON.stringify(classroomLoc))
+    btn.textContent = '📍 Set My Current Location as Classroom'
+    btn.disabled = false
+    updateLocUI()
+  }, () => {
+    btn.textContent = '📍 Set My Current Location as Classroom'
+    btn.disabled = false
+    alert('Could not get location. Make sure location is enabled in your browser.')
+  }, { timeout: 10000, enableHighAccuracy: true })
+})
+
+function updateLocUI() {
+  document.getElementById('loc-indicator').className = 'loc-indicator set'
+  document.getElementById('loc-status-text').textContent = 'Classroom location set'
+  const c = document.getElementById('loc-coords')
+  c.style.display = 'block'
+  c.textContent = `${classroomLoc.lat.toFixed(5)}, ${classroomLoc.lng.toFixed(5)}`
+}
+
+document.getElementById('radius-slider').addEventListener('input', e => {
+  allowedRadius = parseInt(e.target.value)
+  document.getElementById('radius-val').textContent = allowedRadius + ' m'
+  localStorage.setItem(RADIUS_KEY, allowedRadius)
+})
+
+document.getElementById('generate-btn').addEventListener('click', () => {
+  if (!classroomLoc) {
+    alert('Please set your classroom location first.')
+    return
+  }
+  generateCode()
+})
+
+function generateCode() {
+  if (timerInterval) clearInterval(timerInterval)
+  currentCode = encodeCode(classroomLoc.lat, classroomLoc.lng)
+  codeExpiry = Date.now() + CODE_DURATION
+
+  document.getElementById('code-inactive').style.display = 'none'
+  document.getElementById('code-live').style.display = 'block'
+  document.getElementById('code-display').textContent = currentCode
+  document.getElementById('code-card').classList.add('active-code')
+  document.getElementById('expire-btn').style.display = ''
+  document.getElementById('fullscreen-hint').style.display = 'block'
+
+  updateTimer()
+  timerInterval = setInterval(updateTimer, 1000)
+}
+
+function updateTimer() {
+  const remaining = codeExpiry - Date.now()
+  if (remaining <= 0) {
+    clearInterval(timerInterval)
+    expireCode()
+    return
+  }
+  const m = Math.floor(remaining / 60000)
+  const s = Math.floor((remaining % 60000) / 1000)
+  document.getElementById('expiry-text').textContent = `Expires in ${m}:${String(s).padStart(2,'0')}`
+  const pct = (remaining / CODE_DURATION) * 100
+  document.getElementById('timer-bar').style.width = pct + '%'
+  document.getElementById('timer-bar').style.background = pct < 25 ? 'var(--danger)' : 'var(--amber)'
+
+  // Update projector timer too
+  document.getElementById('proj-timer').textContent = `Expires in ${m}:${String(s).padStart(2,'0')}`
+}
+
+function expireCode() {
+  document.getElementById('code-card').classList.remove('active-code')
+  document.getElementById('code-inactive').style.display = 'block'
+  document.getElementById('code-live').style.display = 'none'
+  document.getElementById('expire-btn').style.display = 'none'
+  document.getElementById('fullscreen-hint').style.display = 'none'
+  currentCode = null
+}
+
+document.getElementById('expire-btn').addEventListener('click', () => {
+  clearInterval(timerInterval)
+  expireCode()
+})
+
+document.getElementById('clear-log-btn').addEventListener('click', () => {
+  if (confirm('Clear today\'s attendance log?')) {
+    const log = getLog()
+    const today = new Date().toDateString()
+    const filtered = log.filter(e => new Date(e.ts).toDateString() !== today)
+    localStorage.setItem(LOG_KEY, JSON.stringify(filtered))
+    renderLog()
+  }
+})
+
+// ── View toggle ──────────────────────────────
+let currentView = 'student'
+document.getElementById('view-toggle').addEventListener('click', () => {
+  currentView = currentView === 'student' ? 'teacher' : 'student'
+  document.getElementById('student-view').classList.toggle('active', currentView === 'student')
+  document.getElementById('teacher-view').classList.toggle('active', currentView === 'teacher')
+  document.getElementById('view-toggle').textContent = currentView === 'student' ? 'Teacher Login' : '← Student View'
+})
+
+// ── Projector Mode ───────────────────────────
+document.getElementById('fullscreen-btn').addEventListener('click', () => {
+  if (!currentCode) { alert('Generate a code first.'); return }
+  document.getElementById('proj-code').textContent = currentCode
+  document.getElementById('projector-overlay').style.display = 'flex'
+  document.documentElement.requestFullscreen?.()
+})
+
+function closeProjector() {
+  document.getElementById('projector-overlay').style.display = 'none'
+  document.exitFullscreen?.()
+}
+
+// Loc indicator initial state
+document.getElementById('loc-indicator').className = 'loc-indicator unset'
+
+// Init location if saved (for display)
+const savedLoc = localStorage.getItem(LOC_KEY)
+if (savedLoc) {
+  try {
+    classroomLoc = JSON.parse(savedLoc)
+    allowedRadius = parseInt(localStorage.getItem(RADIUS_KEY) || '100')
+  } catch {}
+}
+</script>
+</body>
+</html>
